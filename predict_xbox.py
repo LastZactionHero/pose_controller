@@ -7,6 +7,9 @@ import os
 import joblib
 from tensorflow.keras.models import load_model
 import pygame  # Import Pygame for joystick input
+import websocket
+import json
+import threading
 
 # Load the saved scaler and model
 scaler = joblib.load('scaler.save')
@@ -17,6 +20,14 @@ sequence_length = 3
 
 # Initialize the pose buffer
 pose_buffer = []
+
+# Define the WebSocket URL of your server
+WEBSOCKET_URL = 'ws://144.202.24.235:5555'
+
+# Connect to the WebSocket server
+ws = websocket.WebSocket()
+ws.connect(WEBSOCKET_URL)
+
 
 # Function to extract features from detection_result
 def extract_features(detection_result):
@@ -79,6 +90,15 @@ else:
 # Deadzone threshold for controller axes
 deadzone = 0.1
 
+# Function to send controller state over WebSocket
+def send_controller_state(controller_state):
+    message = json.dumps(controller_state)
+    ws.send(message)
+
+# Replace the `post_controller_state` function with `send_controller_state`
+# def post_controller_state(controller_state):
+#     send_controller_state(controller_state)
+
 # Function to read controller inputs
 def read_controller_inputs():
     pygame.event.pump()
@@ -96,6 +116,7 @@ def post_controller_state(controller_state):
     # For now, we just print it for debugging
     print("Controller State:")
     print(controller_state)
+    send_controller_state(controller_state)
 
 while cap.isOpened():
     ret, frame = cap.read()
