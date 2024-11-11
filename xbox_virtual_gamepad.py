@@ -5,73 +5,60 @@ import sys
 # Define the WebSocket URL of your server
 WEBSOCKET_URL = 'ws://144.202.24.235:5555'
 
-# Try to import vgamepad, if not available, create a stub for dry run mode
+# Try to import pyvjoy, if not available, create a stub for dry run mode
 try:
-    import vgamepad as vg
-    VGAMEPAD_AVAILABLE = True
+    import pyvjoy
+    PYVJOY_AVAILABLE = True
 except ImportError:
-    VGAMEPAD_AVAILABLE = False
-    print("vgamepad is not available. Running in dry run mode.")
+    PYVJOY_AVAILABLE = False
+    print("pyvjoy is not available. Running in dry run mode.")
 
-    # Create a stub for vg.VX360Gamepad
-    class GamepadStub:
-        def __init__(self):
-            pass
+    # Create a stub for pyvjoy.VJoyDevice
+    class VJoyDeviceStub:
+        def __init__(self, device_id=1):
+            self.device_id = device_id
 
-        def right_joystick_float(self, x_value_float, y_value_float):
-            print(f"Stub: right_joystick_float({x_value_float}, {y_value_float})")
+        def set_axis(self, axis, value):
+            print(f"Stub: set_axis({axis}, {value})")
 
-        def left_joystick_float(self, x_value_float, y_value_float):
-            print(f"Stub: left_joystick_float({x_value_float}, {y_value_float})")
+        def set_button(self, button_id, value):
+            print(f"Stub: set_button({button_id}, {value})")
 
-        def left_trigger_float(self, value_float):
-            print(f"Stub: left_trigger_float({value_float})")
+        def reset(self):
+            print("Stub: reset()")
 
-        def right_trigger_float(self, value_float):
-            print(f"Stub: right_trigger_float({value_float})")
-
-        def press_button(self, button):
-            print(f"Stub: press_button({button})")
-
-        def release_button(self, button):
-            print(f"Stub: release_button({button})")
-
-        def press_dpad_button(self, direction):
-            print(f"Stub: press_dpad_button({direction})")
-
-        def release_dpad(self):
-            print("Stub: release_dpad()")
+        def data(self):
+            return self
 
         def update(self):
-            pass  # No action needed in dry run mode
+            pass
 
-    # Assign GamepadStub to vg.VX360Gamepad for consistency
-    vg = type('vg', (), {'VX360Gamepad': GamepadStub, 'XUSB_BUTTON': type('XUSB_BUTTON', (), {}), 'XUSB_DPAD': type('XUSB_DPAD', (), {})})
+        @property
+        def data(self):
+            return self
 
-    # Define constants for buttons and D-pad directions in the stub
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_A = 'A'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_B = 'B'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_X = 'X'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_Y = 'Y'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_LEFT_SHOULDER = 'LEFT_SHOULDER'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER = 'RIGHT_SHOULDER'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_BACK = 'BACK'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_START = 'START'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_LEFT_THUMB = 'LEFT_THUMB'
-    vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB = 'RIGHT_THUMB'
+        @data.setter
+        def data(self, value):
+            pass
 
-    vg.XUSB_DPAD.UP = 'UP'
-    vg.XUSB_DPAD.DOWN = 'DOWN'
-    vg.XUSB_DPAD.LEFT = 'LEFT'
-    vg.XUSB_DPAD.RIGHT = 'RIGHT'
-    vg.XUSB_DPAD.UP_LEFT = 'UP_LEFT'
-    vg.XUSB_DPAD.UP_RIGHT = 'UP_RIGHT'
-    vg.XUSB_DPAD.DOWN_LEFT = 'DOWN_LEFT'
-    vg.XUSB_DPAD.DOWN_RIGHT = 'DOWN_RIGHT'
-    vg.XUSB_DPAD.NONE = 'NONE'
+        @property
+        def hdata(self):
+            return self
 
-# Initialize virtual gamepad or stub
-gamepad = vg.VX360Gamepad()
+        @hdata.setter
+        def hdata(self, value):
+            pass
+
+    # Assign VJoyDeviceStub to pyvjoy.VJoyDevice for consistency
+    pyvjoy = type('pyvjoy', (), {'VJoyDevice': VJoyDeviceStub,
+                                 'HID_USAGE_X': 0x30, 'HID_USAGE_Y': 0x31,
+                                 'HID_USAGE_Z': 0x32, 'HID_USAGE_RX': 0x33,
+                                 'HID_USAGE_RY': 0x34, 'HID_USAGE_RZ': 0x35,
+                                 'HID_USAGE_SL0': 0x36, 'HID_USAGE_SL1': 0x37,
+                                 'HID_USAGE_WHL': 0x38, 'HID_USAGE_POV': 0x39})
+
+# Initialize virtual joystick or stub
+j = pyvjoy.VJoyDevice(1)  # Device ID 1
 
 def on_message(ws, message):
     controller_state = json.loads(message)
@@ -79,81 +66,65 @@ def on_message(ws, message):
     buttons = controller_state.get('buttons', [])
     hats = controller_state.get('hats', [])
 
-    # Update axes (assuming standard mapping)
-    # Axes mapping may vary depending on the controller
-    # Here we assume axes[0] and axes[1] are left joystick
-    # and axes[2] and axes[3] are right joystick
-    if len(axes) >= 4:
-        # Left joystick
-        left_x = axes[0]
-        left_y = axes[1]
-        gamepad.left_joystick_float(x_value_float=left_x, y_value_float=left_y)
+    # Reset the joystick to neutral position
+    j.reset()
 
-        # Right joystick
-        right_x = axes[2]
-        right_y = axes[3]
-        gamepad.right_joystick_float(x_value_float=right_x, y_value_float=right_y)
+    # Update axes
+    # vJoy axes values range from 0 to 0x8000 (0 to 32768)
+    # We'll map input values from [-1.0, 1.0] to [0, 32768]
 
-    # Update triggers (if axes[4] and axes[5] are triggers)
-    if len(axes) >= 6:
-        # Triggers typically range from -1.0 to 1.0, adjust as needed
-        left_trigger = (axes[4] + 1) / 2  # Convert from [-1, 1] to [0, 1]
-        right_trigger = (axes[5] + 1) / 2  # Convert from [-1, 1] to [0, 1]
-        gamepad.left_trigger_float(value_float=left_trigger)
-        gamepad.right_trigger_float(value_float=right_trigger)
+    def map_axis(value):
+        return int((value + 1) * 0x4000)  # 0x4000 = 16384
+
+    axis_mapping = [
+        (pyvjoy.HID_USAGE_X, 0),  # Axis 0 -> X
+        (pyvjoy.HID_USAGE_Y, 1),  # Axis 1 -> Y
+        (pyvjoy.HID_USAGE_Z, 2),  # Axis 2 -> Z
+        (pyvjoy.HID_USAGE_RX, 3), # Axis 3 -> Rx
+        (pyvjoy.HID_USAGE_RY, 4), # Axis 4 -> Ry
+        (pyvjoy.HID_USAGE_RZ, 5), # Axis 5 -> Rz
+    ]
+
+    for axis, idx in axis_mapping:
+        if idx < len(axes):
+            value = map_axis(axes[idx])
+            j.set_axis(axis, value)
 
     # Update buttons
-    # Map the buttons to virtual gamepad buttons
-    # The mapping depends on the controller; here's an example for Xbox controller
-    # Assuming buttons[0] is 'A', buttons[1] is 'B', buttons[2] is 'X', buttons[3] is 'Y', etc.
-    button_mapping = {
-        0: vg.XUSB_BUTTON.XUSB_GAMEPAD_A,
-        1: vg.XUSB_BUTTON.XUSB_GAMEPAD_B,
-        2: vg.XUSB_BUTTON.XUSB_GAMEPAD_X,
-        3: vg.XUSB_BUTTON.XUSB_GAMEPAD_Y,
-        4: vg.XUSB_BUTTON.XUSB_GAMEPAD_LEFT_SHOULDER,
-        5: vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_SHOULDER,
-        6: vg.XUSB_BUTTON.XUSB_GAMEPAD_BACK,
-        7: vg.XUSB_BUTTON.XUSB_GAMEPAD_START,
-        8: vg.XUSB_BUTTON.XUSB_GAMEPAD_LEFT_THUMB,
-        9: vg.XUSB_BUTTON.XUSB_GAMEPAD_RIGHT_THUMB,
-    }
-
+    # vJoy supports up to 128 buttons, numbered from 1
     for i, button_state in enumerate(buttons):
-        if i in button_mapping:
-            button = button_mapping[i]
-            if button_state:
-                gamepad.press_button(button=button)
-            else:
-                gamepad.release_button(button=button)
+        button_id = i + 1  # vJoy buttons start at 1
+        j.set_button(button_id, int(button_state))
 
-    # Update D-pad (hats)
-    # Assuming hats is a list of tuples, e.g., [(0, 1)]
-    # Map hat values to D-pad directions
-    dpad_mapping = {
-        (0, 1): vg.XUSB_DPAD.UP,
-        (1, 1): vg.XUSB_DPAD.UP_RIGHT,
-        (1, 0): vg.XUSB_DPAD.RIGHT,
-        (1, -1): vg.XUSB_DPAD.DOWN_RIGHT,
-        (0, -1): vg.XUSB_DPAD.DOWN,
-        (-1, -1): vg.XUSB_DPAD.DOWN_LEFT,
-        (-1, 0): vg.XUSB_DPAD.LEFT,
-        (-1, 1): vg.XUSB_DPAD.UP_LEFT,
-        (0, 0): vg.XUSB_DPAD.NONE,
+    # Update POV hats
+    # vJoy supports up to 4 POV hats
+    # Hats are represented as integers:
+    # -1: neutral, 0: north, 4500: north-east, 9000: east, ..., 31500: north-west
+    pov_mapping = {
+        (0, 1): 0,      # North
+        (1, 1): 4500,   # North-East
+        (1, 0): 9000,   # East
+        (1, -1): 13500, # South-East
+        (0, -1): 18000, # South
+        (-1, -1): 22500,# South-West
+        (-1, 0): 27000, # West
+        (-1, 1): 31500, # North-West
+        (0, 0): -1      # Neutral
     }
 
     if hats:
         hat = hats[0]  # Assuming single hat
-        direction = dpad_mapping.get(hat, vg.XUSB_DPAD.NONE)
-        if direction != vg.XUSB_DPAD.NONE:
-            gamepad.press_dpad_button(direction=direction)
+        pov_value = pov_mapping.get(tuple(hat), -1)
+        # vJoy uses 0xFFFFFFFF for neutral position
+        if pov_value >= 0:
+            j.data.wHat = pov_value * 100  # vJoy expects values in hundredths of a degree
         else:
-            gamepad.release_dpad()
+            j.data.wHat = 0xFFFFFFFF  # Neutral position
+        j.update()
     else:
-        gamepad.release_dpad()
-
-    # Send updates to the virtual gamepad
-    gamepad.update()
+        # No hat input; set to neutral
+        j.data.wHat = 0xFFFFFFFF
+        j.update()
 
 def on_error(ws, error):
     print(f"WebSocket Error: {error}")
